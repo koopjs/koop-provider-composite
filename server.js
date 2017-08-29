@@ -19,7 +19,7 @@ koop.register(provider)
 // Start listening for HTTP traffic
 const config = require('config')
 // Set port for configuration or fall back to default
-const port = config.port || 8080
+const port = process.env.PORT || 8080
 koop.server.listen(port)
 
 const message = `

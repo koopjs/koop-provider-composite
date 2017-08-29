@@ -1,0 +1,19 @@
+{
+      "url": "https://services.arcgis.com/hRUr1F8lE8Jq2uJo/arcgis/rest/services/DURHAM_COUNTY_WITH_FLDS/FeatureServer",
+      "fieldMap": {
+        "state": "State",
+        "county": "County",
+        "incorporatedMunicipality": "CITY2",
+        "unincorpCounty": "UNINCORP",
+        "postalCommunityName": "SUBDIVISIO",
+        "zipCode": "ZIPCODE",
+        "streetName": "STREETNAME",
+        "addressNumber": "HOUSENUM",
+        "guid": "guid_str",
+        "addressType": "TYPE",
+        "addressPlacement": "PLACEMENT",
+        "addressSource": "SOURCE",
+        "addressAuthority": "AUTHORITY",
+        "dateLastUpdated": "UPDATED_DT"
+    }
+}

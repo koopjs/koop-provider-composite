@@ -7,19 +7,16 @@ process.on('SIGTERM', () => process.exit(0))
 const Koop = require('koop')
 const koop = new Koop()
 
-const cache = require('koop-cache-memory')
+const cache = require('@koopjs/cache-redis')
 koop.register(cache)
 // Install the Sample Provider
 const provider = require('./')
 koop.register(provider)
 
-//const cg = require('koop-craigslist')
-//koop.register(cg)
-
 // Start listening for HTTP traffic
-const config = require('config')
 // Set port for configuration or fall back to default
-const port = process.env.PORT || 8080
+const config = require('config')
+const port = config.port || 8080
 koop.server.listen(port)
 
 const message = `

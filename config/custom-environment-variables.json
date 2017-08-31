@@ -1,0 +1,8 @@
+{
+  "port": "KOOP_SERVER_PORT",
+  "cache": {
+    "redis": {
+      "host": "KOOP_REDIS_HOST"
+    }
+  }
+}

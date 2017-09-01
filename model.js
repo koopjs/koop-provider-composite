@@ -21,7 +21,9 @@ module.exports = function (koop) {
           (r, cb) => {
             // result features are back, need another field swizzle
             request(r.url, (err, res, qryResults) => {
-              if (err || !qryResults.features) return callback(err)
+              if (err || !qryResults.features || qryResults.features.length === 0) {
+                return callback(err, `Query failed : ${r.url}`, res)
+              }
               cb(null, translateFields(qryResults, r))
             })
           },
@@ -111,6 +113,11 @@ function buildQueries (schema, query, qcb) {
     const fldMap = srvcSchema.fieldMap
     const swizzledQuery = _.cloneDeep(query)
     swizzledQuery.where = translateQuery(fldMap, query.where)
+    // Handle services in different reference systems *****
+    swizzledQuery.outSR = 4326
+    // ***** TODO: Shouldn't need to do this?
+    swizzledQuery.f = 'geojson' // only supported with services >= 10.4
+    // *****
     const newQuery = getAsParams(swizzledQuery)
 
     const newURL = `${base}?${newQuery}`
@@ -156,17 +163,20 @@ function translateFields (ofResults, toSchema) {
   if (!ofResults.features || ofResults.features.length === 0) return null
   return ofResults.features.map(f => {
     let newProps = {}
-    Object.keys(f.attributes).forEach(fAtt => {
+    let att = f.attributes ? f.attributes : f.properties
+    Object.keys(att).forEach(fAtt => {
       for (var prop in toSchema.schema) {
         if (fAtt === toSchema.schema[prop]) {
-          newProps[prop] = f.attributes[fAtt]
+          newProps[prop] = att[fAtt]
         }
       }
     })
-    f.properties = newProps
-    f.properties.sourceService = toSchema.url.split('?')[0]
-
-    return f
+    newProps['sourceService'] = toSchema.url.split('?')[0]
+    return {
+      type: 'Feature',
+      properties: newProps,
+      geometry: f.geometry
+    }
   })
 }
 

@@ -11,7 +11,7 @@ module.exports = function (model) {
   this.model = model
 
   this.dataset = (req, res) => {
-    switch(req.method) {
+    switch (req.method) {
       case 'GET':
         return this.model.getDataset(req, res, handleResponse)
       case 'PUT':
@@ -29,11 +29,11 @@ module.exports = function (model) {
         return this.model.putDatasetSchema(req, res, handleResponse)
       case 'DELETE':
         return this.model.removeDatasetSchema(req, res, handleResponse)
-    } 
+    }
   }
 }
 
-handleResponse = (err, data, res) => {
+const handleResponse = (err, data, res) => {
   if (err) {
     return res.status(err.code || 500).json({error: err.message})
   } else {

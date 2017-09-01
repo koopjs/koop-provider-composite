@@ -10,20 +10,22 @@ const async = require('async')
 const _ = require('lodash')
 const FeatureService = require('featureservice')
 const baseGeoJSON = require('./base-geojson')
+console.log('wtf')
 
 function Model (koop) {
-  this.getData = (req, callback)=>{
-    this.cache.retrieve(req.params.id, {}, (e, schema) => {
+  this.getData = function (req, callback) {
+    console.log('hello')
+    this.cache.catalog.retrieve(req.params.id, (e, schema) => {
+      console.log(e, schema)
       if (e) return callback(e)
-      buildQueries(schema.features.schemas, req.query, (err, data) => {
+      buildQueries(schema.schemas, req.query, (err, data) => {
+        console.log(data)
         if (err) return callback(err)
-          async.map(data,
+        async.map(data,
             (r, cb) => {
               // result features are back, need another field swizzle
               request(r.url, (err, res, qryResults) => {
-                if (err || !qryResults.features || qryResults.features.length === 0) {
-                  return callback(err, `Query failed : ${r.url}`, res)
-                }
+                // if (err) return callback(err, `Query failed : ${r.url}`, res)
                 cb(null, translateFields(qryResults, r))
               })
             },
@@ -40,71 +42,71 @@ function Model (koop) {
                 geometry: true,
                 where: true
               }
-              agg.features = combinedFeatures
+              agg.features = combinedFeatures || []
+              console.log('hiya', agg)
               callback(null, agg)
             }
           )
-        })
       })
+    })
   }
-  
+
   this.getDatasetSchema = (req, res, callback) => {
-    this.cache.retrieve(req.params.id, {}, (e, data) => {
+    this.cache.catalog.retrieve(req.params.id, (e, data) => {
       if (e) return callback(e, `unable to find intitiative ${req.params.id}`, res)
       return callback(null, data.features.schemas[req.params.schema], res)
     })
   }
-  
+
   this.putDatasetSchema = (req, res, callback) => {
-    this.cache.retrieve(req.params.id, {}, (e, data) => {
+    this.cache.catalog.retrieve(req.params.id, (e, data) => {
       if (e) return callback(e, `unable to find intitiative ${req.params.id}`, res)
-  
+
       // retrieve adds geojson schema by default, is this appropriate?
       data.schemas = data.schema || {}
       data.schemas[req.params.schema] = req.body
-  
-      this.cache.upsert(req.params.id, data, {}, e => {
+
+      this.cache.catalog.update(req.params.id, data, e => {
         if (e) return callback(e, 'unable to add schema definition', res)
         var d = data.schemas[req.params.schema]
         return callback(e, d, res)
       })
     })
   }
-  
+
   this.removeDatasetSchema = (req, res, callback) => {
-    this.cache.retrieve(req.params.id, {}, (e, data) => {
+    this.cache.catalog.retrieve(req.params.id, (e, data) => {
       if (e) return callback(e, `unable to find intiative : ${req.params.id}`, res)
       delete data.features.schemas[req.params.schema]
-      this.cache.upsert(req.params.id, data, {}, e => {
+      this.cache.catalog.update(req.params.id, data, e => {
         if (e) callback(e, `unable to add schema definition : ${req.params.schema}`, res)
         return callback(e, `${req.params.schema} sucessfully removed`, res)
       })
     })
   }
-  
+
   this.getDataset = (req, res, callback) => {
-    this.cache.retrieve(req.params.id, {}, (e, data) => {
+    this.cache.catalog.retrieve(req.params.id, (e, data) => {
       if (e) return callback(e, `Unable to get ${req.params.id}`, res)
       return callback(null, data, res)
     })
   }
-  
+
   this.putDataset = (req, res, callback) => {
     // put the initiative schema map into a cache
     //
     // validate these before inserting?
-    this.cache.insert(req.params.id, req.body, {ttl: 5}, (e) => {
+    this.cache.catalog.insert(req.params.id, req.body, (e) => {
       return callback(null, req.body, res)
     })
   }
-  
+
   this.removeDataset = (req, res, callback) => {
-    this.cache.delete(req.params.id, err => {
+    this.cache.catalog.delete(req.params.id, err => {
       if (err) return callback(err, `unable to find ${req.params.id}, nothing to delete`, res)
       callback(null, `${req.params.id} successfully removed`, res)
     })
   }
-
 }
 
 function buildQueries (schema, query, qcb) {
@@ -184,6 +186,7 @@ function translateFields (ofResults, toSchema) {
 
 function translateQuery (fields, query) {
   // replace query fields with fields from the schema map
+  if (!query) return
   let newQuery = query
   for (var f in fields) {
     newQuery = newQuery.replace(new RegExp(f, 'g'), fields[f])

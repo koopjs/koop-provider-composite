@@ -9,6 +9,7 @@ const koop = new Koop()
 
 const cache = require('@koopjs/cache-redis')
 koop.register(cache)
+
 // Install the Sample Provider
 const provider = require('./')
 koop.register(provider)

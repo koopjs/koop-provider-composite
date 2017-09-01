@@ -11,12 +11,13 @@ const _ = require('lodash')
 const FeatureService = require('featureservice')
 const baseGeoJSON = require('./base-geojson')
 
-module.exports = function (koop) {
-  this.getData = (req, callback) => {
-    this.cache.retrieve(req.params.id, {}, (e, schema) => {
-      if (e) return callback(e)
-      buildQueries(schema.features.schemas, req.query, (err, data) => {
-        if (err) return callback(err)
+function Model (koop) {}
+
+Model.prototype.getData = (req, callback)=>{
+  this.cache.retrieve(req.params.id, {}, (e, schema) => {
+    if (e) return callback(e)
+    buildQueries(schema.features.schemas, req.query, (err, data) => {
+      if (err) return callback(err)
         async.map(data,
           (r, cb) => {
             // result features are back, need another field swizzle
@@ -46,63 +47,62 @@ module.exports = function (koop) {
         )
       })
     })
-  }
+}
 
-  this.getDatasetSchema = (req, res, callback) => {
-    this.cache.retrieve(req.params.id, {}, (e, data) => {
-      if (e) return callback(e, `unable to find intitiative ${req.params.id}`, res)
-      callback(null, data.features.schemas[req.params.schema], res)
+Model.prototype.getDatasetSchema = (req, res, callback) => {
+  this.cache.retrieve(req.params.id, {}, (e, data) => {
+    if (e) return callback(e, `unable to find intitiative ${req.params.id}`, res)
+    callback(null, data.features.schemas[req.params.schema], res)
+  })
+}
+
+Model.prototype.putDatasetSchema = (req, res, callback) => {
+  this.cache.retrieve(req.params.id, {}, (e, data) => {
+    if (e) return callback(e, `unable to find intitiative ${req.params.id}`, res)
+
+    // retrieve adds geojson schema by default, is this appropriate?
+    data.schemas = data.schema || {}
+    data.schemas[req.params.schema] = req.body
+
+    this.cache.upsert(req.params.id, data, {}, e => {
+      if (e) return callback(e, 'unable to add schema definition', res)
+      var d = data.features.schemas[req.params.schema]
+      callback(e, d, res)
     })
-  }
+  })
+}
 
-  this.putDatasetSchema = (req, res, callback) => {
-    this.cache.retrieve(req.params.id, {}, (e, data) => {
-      if (e) return callback(e, `unable to find intitiative ${req.params.id}`, res)
-
-      // retrieve adds geojson schema by default, is this appropriate?
-      data.schemas = data.schema || {}
-      data.schemas[req.params.schema] = req.body
-
-      this.cache.upsert(req.params.id, data, {}, e => {
-        if (e) return callback(e, 'unable to add schema definition', res)
-        var d = data.features.schemas[req.params.schema]
-        callback(e, d, res)
-      })
+Model.prototype.removeDatasetSchema = (req, res, callback) => {
+  this.cache.retrieve(req.params.id, {}, (e, data) => {
+    if (e) return callback(e, `unable to find intiative : ${req.params.id}`, res)
+    delete data.features.schemas[req.params.schema]
+    this.cache.upsert(req.params.id, data, {}, e => {
+      if (e) callback(e, `unable to add schema definition : ${req.params.schema}`, res)
+      callback(e, `${req.params.schema} sucessfully removed`, res)
     })
-  }
+  })
+}
 
-  this.removeDatasetSchema = (req, res, callback) => {
-    this.cache.retrieve(req.params.id, {}, (e, data) => {
-      if (e) return callback(e, `unable to find intiative : ${req.params.id}`, res)
-      delete data.features.schemas[req.params.schema]
-      this.cache.upsert(req.params.id, data, {}, e => {
-        if (e) callback(e, `unable to add schema definition : ${req.params.schema}`, res)
-        callback(e, `${req.params.schema} sucessfully removed`, res)
-      })
-    })
-  }
+Model.prototype.getDataset = (req, res, callback) => {
+  this.cache.retrieve(req.params.id, {}, (e, data) => {
+    callback(e, data, res)
+  })
+}
 
-  this.getDataset = (req, res, callback) => {
-    this.cache.retrieve(req.params.id, {}, (e, data) => {
-      callback(e, data, res)
-    })
-  }
+Model.prototype.putDataset = (req, res, callback) => {
+  // put the initiative schema map into a cache
+  //
+  // validate these before inserting?
+  this.cache.insert(req.params.id, req.body, {ttl: 5}, (e) => {
+    return callback(null, req.body, res)
+  })
+}
 
-  this.putDataset = (req, res, callback) => {
-    // put the initiative schema map into a cache
-    //
-    // validate these before inserting?
-    this.cache.insert(req.params.id, req.body, {ttl: 5}, (e) => {
-      callback(null, req.body, res)
-    })
-  }
-
-  this.removeDataset = (req, res, callback) => {
-    this.cache.delete(req.params.id, err => {
-      if (err) return callback(err, `unable to find ${req.params.id}, nothing to delete`, res)
-      callback(null, `${req.params.id} successfully removed`, res)
-    })
-  }
+Model.prototype.removeDataset = (req, res, callback) => {
+  this.cache.delete(req.params.id, err => {
+    if (err) return callback(err, `unable to find ${req.params.id}, nothing to delete`, res)
+    callback(null, `${req.params.id} successfully removed`, res)
+  })
 }
 
 function buildQueries (schema, query, qcb) {
@@ -188,3 +188,5 @@ function translateQuery (fields, query) {
   }
   return newQuery
 }
+
+module.exports = Model

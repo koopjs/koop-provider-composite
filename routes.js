@@ -5,12 +5,12 @@
   Documentation: http://koopjs.github.io/docs/specs/provider/
 */
 module.exports = [{
-  path: '/nad/:id',
+  path: '/composite/:id',
   methods: ['get', 'put', 'delete', 'post'],
   handler: 'dataset'
 },
 {
-  path: '/nad/:id/:schema',
+  path: '/composite/:id/:schema',
   methods: ['get', 'put', 'delete'],
   handler: 'datasetSchema'
 }

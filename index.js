@@ -8,7 +8,7 @@
 
 const provider = {
   type: 'provider',
-  name: 'nad',
+  name: 'composite',
   hosts: false,
   disableIdParam: false,
   Controller: require('./controller'),

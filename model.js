@@ -21,10 +21,10 @@ module.exports = function (koop) {
             // result features are back, need another field swizzle
             request(r.url, (err, res, qryResults)=>{
               if (err || !qryResults.features || qryResults.features.length === 0) {
-                callback(err)
+                callback(err, `Query failed : ${r.url}`, res)
                 return
               }
-                cb(null,  translateFields(qryResults, r))
+                cb(null, translateFields(qryResults, r))
             })
           }, 
           (err, results)=>{
@@ -32,8 +32,10 @@ module.exports = function (koop) {
             // everything is done, combine the results and send it along
             //const aggResults = results.length > 1 ? geomerge.merge(results) : results[0]
             // Should this be hard coded? I'm thinking this should be inserted through the putDataset
+            
+            
             var agg = {
-              type: 'Featurecollection',
+              type: 'FeatureCollection',
               features: [],
               metadata: {
                   geometryType: 'Point',
@@ -49,12 +51,7 @@ module.exports = function (koop) {
                   },
                   name: 'Aggregrated Addresses',
                   description: 'proxied by http://koopjs.github.io/',
-                  idField: 'OBJECTID',
-                  fields: [{
-                          name: "OBJECTID",
-                          type: "esriFieldTypeOID",
-                          alias: "OBJECTID",
-                      },
+                  fields: [
                       {
                           name: "state",
                           type: "esriFieldTypeString",
@@ -93,13 +90,7 @@ module.exports = function (koop) {
                       {
                           name: "guid",
                           type: "esriFieldTypeString",
-                          alias: "guid",
-                          sqlType: "sqlTypeNVarchar",
-                          "length": 256,
-                          "nullable": true,
-                          "editable": true,
-                          "domain": null,
-                          "defaultValue": null
+                          alias: "guid"
                       },
                       {
                           name: "addresstype",
@@ -125,19 +116,19 @@ module.exports = function (koop) {
                           name: "datelastupdated",
                           type: "esriFieldTypeDate",
                           alias: "dateLastUpdated",
+                      },{
+                        name: "servicesource",
+                        type: "esriFieldTypeString",
+                        alias: "Service Source"
                       }
                   ]
-          
               },
               ttl: 5
             }
+            
             const combinedFeatures = results.reduce((pre, curr)=> {
               return pre.concat(curr)
             })
-            agg.filterApplied = {
-              geometry: true,
-              where: true
-            }
             agg.features = combinedFeatures
             callback(null, agg)
           }
@@ -203,6 +194,9 @@ module.exports = function (koop) {
   }
 }
 
+/**
+ * 
+ */
 buildQueries = (schema, query, qcb) => {
   // for each schema
   const urls = Object.keys(schema).map(k=>{
@@ -211,6 +205,10 @@ buildQueries = (schema, query, qcb) => {
     const fldMap = srvcSchema.fieldMap
     const swizzledQuery = _.cloneDeep(query)
     swizzledQuery.where = translateQuery(fldMap, query.where)
+    // ***** TODO: Shouldn't need to do this? Handle services in different reference systems *****
+    swizzledQuery.outSR = 4326
+    swizzledQuery.f = 'geojson' // only supported with services >= 10.4
+    // *****
     const newQuery = getAsParams(swizzledQuery)
 
     const newURL = `${base}?${newQuery}`
@@ -218,13 +216,13 @@ buildQueries = (schema, query, qcb) => {
     return {url: newURL, schema: fldMap}
   })
 
-  qcb(null, urls);
-  /* paging?
+  // No paging 
+  // qcb(null, urls);
+  
+  // paging?
   async.map(urls, getFSUrls, (e,r)=>{
     qcb(null, r.reduce((p,c)=>{return p.concat(c)}))
   })
-  */
-  
 }
 
 getFSUrls = (i, cb)=> {
@@ -256,17 +254,20 @@ translateFields = (ofResults, toSchema)=>{
   if (!ofResults.features || ofResults.features.length === 0) return null
   const newFeatures = ofResults.features.map(f=>{
     let newProps = {}
-    Object.keys(f.attributes).forEach(fAtt => {
+    Object.keys(f.properties).forEach(fAtt => {
       for (var prop in toSchema.schema) {
         if (fAtt === toSchema.schema[prop]){
-          newProps[prop] = f.attributes[fAtt]
+          newProps[prop] = f.properties[fAtt]
         }
-      }
+       }
     })
-    f.properties = newProps
-    f.properties.sourceService = toSchema.url.split('?')[0]
-
-    return f;
+    newProps['sourceService'] = toSchema.url.split('?')[0]
+    return {
+      type: 'Feature',
+      properties: newProps,
+      geometry: f.geometry
+    }
+    
   })
 
   return newFeatures

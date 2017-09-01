@@ -205,8 +205,9 @@ buildQueries = (schema, query, qcb) => {
     const fldMap = srvcSchema.fieldMap
     const swizzledQuery = _.cloneDeep(query)
     swizzledQuery.where = translateQuery(fldMap, query.where)
-    // ***** TODO: Shouldn't need to do this? Handle services in different reference systems *****
+    // Handle services in different reference systems *****
     swizzledQuery.outSR = 4326
+    // ***** TODO: Shouldn't need to do this? 
     swizzledQuery.f = 'geojson' // only supported with services >= 10.4
     // *****
     const newQuery = getAsParams(swizzledQuery)
@@ -217,12 +218,12 @@ buildQueries = (schema, query, qcb) => {
   })
 
   // No paging 
-  // qcb(null, urls);
+  qcb(null, urls);
   
   // paging?
-  async.map(urls, getFSUrls, (e,r)=>{
-    qcb(null, r.reduce((p,c)=>{return p.concat(c)}))
-  })
+  // async.map(urls, getFSUrls, (e,r)=>{
+  //  qcb(null, r.reduce((p,c)=>{return p.concat(c)}))
+  // })
 }
 
 getFSUrls = (i, cb)=> {
@@ -254,10 +255,11 @@ translateFields = (ofResults, toSchema)=>{
   if (!ofResults.features || ofResults.features.length === 0) return null
   const newFeatures = ofResults.features.map(f=>{
     let newProps = {}
-    Object.keys(f.properties).forEach(fAtt => {
+    let att = f.attributes ? f.attributes : f.properties
+    Object.keys(att).forEach(fAtt => {
       for (var prop in toSchema.schema) {
         if (fAtt === toSchema.schema[prop]){
-          newProps[prop] = f.properties[fAtt]
+          newProps[prop] = att[fAtt]
         }
        }
     })

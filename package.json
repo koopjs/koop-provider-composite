@@ -18,6 +18,7 @@
     "featureservice": "^1.5.11",
     "koop": "^3.5.2",
     "request": "^2.79.0",
+    "request-promise": "^4.2.1",
     "request-promise-native": "^1.0.4"
   },
   "author": "Daniel Fenton",

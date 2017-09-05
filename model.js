@@ -5,7 +5,7 @@
 
   Documentation: http://koopjs.github.io/docs/specs/provider/
 */
-const request = require('request').defaults({gzip: true, json: true})
+const request = require('request-promise').defaults({gzip: true, json: true})
 const async = require('async')
 const _ = require('lodash')
 const FeatureService = require('featureservice')
@@ -21,32 +21,31 @@ function Model (koop) {
       buildQueries(schema.schemas, req.query, function (err, data) {
         console.log(data)
         if (err) return callback(err)
-        async.map(data,
-            function (r, cb) {
-              // result features are back, need another field swizzle
-              request(r.url, function (err, res, qryResults) {
-                // if (err) return callback(err, `Query failed : ${r.url}`, res)
-                cb(null, translateFields(qryResults, r))
-              })
-            },
-            function (err, results) {
-              if (err) return callback(err)
-              // everything is done, combine the results and send it along
-              // const aggResults = results.length > 1 ? geomerge.merge(results) : results[0]
-              // Should this be hard coded? I'm thinking this should be inserted through the putDataset
-              var agg = baseGeoJSON
-              const combinedFeatures = results.reduce(function (pre, curr) {
-                return pre.concat(curr)
-              }, [])
-              agg.filterApplied = {
-                geometry: true,
-                where: true
-              }
-              agg.features = combinedFeatures || []
-              //console.log('hiya', agg)
-              callback(null, agg)
+        
+        let fsRequests = []
+        data.forEach(function (d, i){
+          fsRequests.push(requestASync(d))
+        })
+        Promise.all(fsRequests)
+          .then(function (results){
+            // everything is done, combine the results and send it along
+            // Should this be hard coded? I'm thinking this should be inserted through the putDataset
+            var agg = baseGeoJSON
+            const combinedFeatures = results.reduce(function (pre, curr) {
+              if (curr) return pre.concat(curr)
+              return pre
+            }, [])
+            agg.filterApplied = {
+              geometry: true,
+              where: true
             }
-          )
+            agg.features = combinedFeatures || []
+            //console.log('hiya', agg)
+            callback(null, agg)
+          })
+          .catch(function (err) {
+            console.log(err)
+          })
       })
     })
   }
@@ -147,6 +146,20 @@ function buildQueries (schema, query, qcb) {
     qcb(null, r.reduce((p,c)=>{return p.concat(c)}))
   })
   */
+}
+
+/**
+ * 
+ * @param {*} itm 
+ */
+function requestASync(itm) {
+  return new Promise(function (resolve, reject) {
+    request(itm.url, function (err, res, body) {
+      if (err) return reject(err)
+      const features = translateFields(body, itm)
+      return resolve(features)
+    })
+  })
 }
 
 /**

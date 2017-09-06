@@ -91,6 +91,5 @@ module.exports = {
       type: 'esriFieldTypeDate',
       alias: 'dateLastUpdated'
     }]
-  },
-  ttl: 5
+  }
 }

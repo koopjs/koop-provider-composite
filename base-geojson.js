@@ -2,6 +2,7 @@ module.exports = {
   type: 'FeatureCollection',
   features: [],
   metadata: {
+    maxRecordCount: 5000,
     geometryType: 'Point',
     extent: {
       xmin: -119.70703125,

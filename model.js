@@ -9,7 +9,7 @@ const request = require('request-promise').defaults({
   gzip: true,
   json: true
 })
-const async = require('async')
+// const async = require('async')
 const _ = require('lodash')
 const FeatureService = require('featureservice')
 const baseGeoJSON = require('./base-geojson')
@@ -28,7 +28,7 @@ function Model(koop) {
         if (err) return callback(err)
 
         let fsRequests = []
-        data.forEach(function (d, i) {
+        data.forEach(function (d) {
           fsRequests.push(requestASync(d))
         })
         Promise.all(fsRequests)
@@ -37,7 +37,7 @@ function Model(koop) {
             if (results[0] && results[0].count) {
               var c = baseCount
               c.count = results.reduce(function (pVal, cVal) {
-                return pVal + cVal.count
+                return pVal + (cVal.count * 10)
                }, 0)
                return callback(null, c)
             }
@@ -52,7 +52,7 @@ function Model(koop) {
               where: true
             }
             agg.features = combinedFeatures || []
-             console.log(`getData returning: ${agg.features.length} features`)
+            // console.log(`getData returning: ${agg.features.length} features`)
             return callback(null, agg)
           })
           .catch(function (err) {
@@ -222,7 +222,7 @@ function getFSUrls(i, cb) {
 function getAsParams(queryObj) {
   let str = []
   for (var prop in queryObj) {
-    if (queryObj.hasOwnProperty(prop) & prop !== 'callback') {
+    if (queryObj.hasOwnProperty(prop) && prop !== 'callback' && prop != 'outStatistics') {
       str.push(encodeURIComponent(prop) + '=' + encodeURIComponent(queryObj[prop]))
     }
   }

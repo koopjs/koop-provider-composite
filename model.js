@@ -52,11 +52,11 @@ function Model(koop) {
               where: true
             }
             agg.features = combinedFeatures || []
-            // console.log('Returning \n', agg)
+             console.log(`getData returning: ${agg.features.length} features`)
             return callback(null, agg)
           })
           .catch(function (err) {
-            console.log(`getData : ${err}`)
+            console.log(`getData : ${err} `)
           })
       })
     })
@@ -247,7 +247,7 @@ function translateFields(ofResults, toSchema) {
         }
       }
     })
-    newProps['sourceService'] = toSchema.url.split('?')[0]
+    newProps.sourceservice = toSchema.url.split('?')[0]
     return {
       type: 'Feature',
       properties: newProps,

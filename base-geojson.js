@@ -83,6 +83,11 @@ module.exports = {
         name: 'datelastupdated',
         type: 'esriFieldTypeDate',
         alias: 'dateLastUpdated'
+      },
+      {
+        name: 'sourceservice',
+        type: 'esriFieldTypeString',
+        alias: 'sourceService'
       }
     ]
   }

@@ -1,5 +1,8 @@
 {
-  "trimet": {
-    "key": "8A0EBB788E8205888807BAC97"
+  "port": 3001,
+  "cache": {
+    "redis": {
+      "host": "redis://localhost:6379"
+    }
   }
 }

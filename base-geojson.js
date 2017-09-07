@@ -57,13 +57,7 @@ module.exports = {
       {
         name: 'guid',
         type: 'esriFieldTypeString',
-        alias: 'guid',
-        sqlType: 'sqlTypeNVarchar',
-        'length': 256,
-        'nullable': true,
-        'editable': true,
-        'domain': null,
-        'defaultValue': null
+        alias: 'guid'
       },
       {
         name: 'addresstype',

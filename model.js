@@ -52,11 +52,11 @@ function Model(koop) {
               where: true
             }
             agg.features = combinedFeatures || []
-            console.log('Returning \n', agg)
+            // console.log('Returning \n', agg)
             return callback(null, agg)
           })
           .catch(function (err) {
-            console.log(err)
+            console.log(`getData : ${err}`)
           })
       })
     })
@@ -180,11 +180,11 @@ function buildQueries(schema, query, qcb) {
  */
 function requestASync(itm) {
   return new Promise(function (resolve, reject) {
-    console.log(`Requesting\n ${itm.url}`)
+    // console.log(`Requesting\n ${itm.url}`)
     request(itm.url, function (err, res, body) {
       if (err) return reject(err)
-      if (itm.q.returnCountOnly || itm.q.returnIDs) {
-        return resolve(body)
+      if (itm.q.returnCountOnly || itm.q.returnIdsOnly) {
+        return resolve(body.properties)
       }
       const features = translateFields(body, itm)
       return resolve(features)
@@ -242,7 +242,7 @@ function translateFields(ofResults, toSchema) {
     Object.keys(att).forEach(function (fAtt) {
       for (var prop in toSchema.schema) {
         if (fAtt === toSchema.schema[prop]) {
-          console.log(`Matched ${fAtt} to ${prop}`)
+          // console.log(`Matched ${fAtt} to ${prop}`)
           newProps[prop] = att[fAtt]
         }
       }

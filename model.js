@@ -5,31 +5,43 @@
 
   Documentation: http://koopjs.github.io/docs/specs/provider/
 */
-const request = require('request-promise').defaults({gzip: true, json: true})
+const request = require('request-promise').defaults({
+  gzip: true,
+  json: true
+})
 const async = require('async')
 const _ = require('lodash')
 const FeatureService = require('featureservice')
 const baseGeoJSON = require('./base-geojson')
+const baseCount = require('./base-returnCount')
+
 console.log('wtf')
 
-function Model (koop) {
+function Model(koop) {
   this.getData = function (req, callback) {
-    console.log('hello')
+    //console.log('hello')
     this.cache.catalog.retrieve(req.params.id, function (e, schema) {
-      console.log(e, schema)
+      //console.log(e, schema)
       if (e) return callback(e)
       buildQueries(schema.schemas, req.query, function (err, data) {
-        console.log(data)
+        //console.log(data)
         if (err) return callback(err)
-        
+
         let fsRequests = []
-        data.forEach(function (d, i){
+        data.forEach(function (d, i) {
           fsRequests.push(requestASync(d))
         })
         Promise.all(fsRequests)
-          .then(function (results){
+          .then(function (results) {
             // everything is done, combine the results and send it along
-            // Should this be hard coded? I'm thinking this should be inserted through the putDataset
+            if (results[0] && results[0].count) {
+              var c = baseCount
+              c.count = results.reduce(function (pVal, cVal) {
+                return pVal + cVal.count
+               }, 0)
+               return callback(null, c)
+            }
+
             var agg = baseGeoJSON
             const combinedFeatures = results.reduce(function (pre, curr) {
               if (curr) return pre.concat(curr)
@@ -40,8 +52,8 @@ function Model (koop) {
               where: true
             }
             agg.features = combinedFeatures || []
-            //console.log('hiya', agg)
-            callback(null, agg)
+            console.log('Returning \n', agg)
+            return callback(null, agg)
           })
           .catch(function (err) {
             console.log(err)
@@ -98,7 +110,7 @@ function Model (koop) {
     //
     // validate these before inserting?
     this.cache.catalog.insert(req.params.id, req.body, function (e) {
-      if (e) return callback(e, 'unable to put initiative', res) 
+      if (e) return callback(e, 'unable to put initiative', res)
       return callback(null, req.body, res)
     })
   }
@@ -120,24 +132,38 @@ function Model (koop) {
  * @param {*} query 
  * @param {*} qcb 
  */
-function buildQueries (schema, query, qcb) {
+function buildQueries(schema, query, qcb) {
+
   // for each schema
   const urls = Object.keys(schema).map(function (k) {
     const srvcSchema = schema[k]
     const base = srvcSchema.url
     const fldMap = srvcSchema.fieldMap
     const swizzledQuery = _.cloneDeep(query)
-    swizzledQuery.where = translateQuery(fldMap, query.where)
+    var  tQuery = translateQuery(fldMap, query.where) 
+    if (tQuery) swizzledQuery.where = tQuery
+    
     // ***** TODO: questions?
+    
     // Handle services in different reference systems *****
-    swizzledQuery.outSR = 4326
-    swizzledQuery.f = 'geojson' // only supported with services >= 10.4
+    if (swizzledQuery.outSR !== 4326){
+      swizzledQuery.outSR = 4326
+    }
+
+    // only supported with services >= 10.4
+    if (swizzledQuery.f !== 'geojson') {
+      swizzledQuery.f = 'geojson'
+    } 
     // *****
     const newQuery = getAsParams(swizzledQuery)
 
     const newURL = `${base}?${newQuery}`
 
-    return {url: newURL, schema: fldMap}
+    return {
+      url: newURL,
+      schema: fldMap,
+      q: swizzledQuery
+    }
   })
 
   qcb(null, urls)
@@ -154,8 +180,12 @@ function buildQueries (schema, query, qcb) {
  */
 function requestASync(itm) {
   return new Promise(function (resolve, reject) {
+    console.log(`Requesting\n ${itm.url}`)
     request(itm.url, function (err, res, body) {
       if (err) return reject(err)
+      if (itm.q.returnCountOnly || itm.q.returnIDs) {
+        return resolve(body)
+      }
       const features = translateFields(body, itm)
       return resolve(features)
     })
@@ -167,8 +197,10 @@ function requestASync(itm) {
  * @param {*} i 
  * @param {*} cb 
  */
-function getFSUrls (i, cb) {
-  const fs = new FeatureService(i.url, {where: i.where})
+function getFSUrls(i, cb) {
+  const fs = new FeatureService(i.url, {
+    where: i.where
+  })
   fs.pages(function (e, pages) {
     if (e) cb(e)
 
@@ -187,10 +219,10 @@ function getFSUrls (i, cb) {
  * 
  * @param {*} queryObj 
  */
-function getAsParams (queryObj) {
+function getAsParams(queryObj) {
   let str = []
   for (var prop in queryObj) {
-    if (queryObj.hasOwnProperty(prop)) {
+    if (queryObj.hasOwnProperty(prop) & prop !== 'callback') {
       str.push(encodeURIComponent(prop) + '=' + encodeURIComponent(queryObj[prop]))
     }
   }
@@ -202,7 +234,7 @@ function getAsParams (queryObj) {
  * @param {*} ofResults 
  * @param {*} toSchema 
  */
-function translateFields (ofResults, toSchema) {
+function translateFields(ofResults, toSchema) {
   if (!ofResults.features || ofResults.features.length === 0) return null
   return ofResults.features.map(function (f) {
     let newProps = {}
@@ -210,6 +242,7 @@ function translateFields (ofResults, toSchema) {
     Object.keys(att).forEach(function (fAtt) {
       for (var prop in toSchema.schema) {
         if (fAtt === toSchema.schema[prop]) {
+          console.log(`Matched ${fAtt} to ${prop}`)
           newProps[prop] = att[fAtt]
         }
       }
@@ -228,7 +261,7 @@ function translateFields (ofResults, toSchema) {
  * @param {*} fields 
  * @param {*} query 
  */
-function translateQuery (fields, query) {
+function translateQuery(fields, query) {
   // replace query fields with fields from the schema map
   if (!query) return
   let newQuery = query

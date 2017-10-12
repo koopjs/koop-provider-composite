@@ -15,7 +15,6 @@ const FeatureService = require('featureservice')
 const baseGeoJSON = require('./base-geojson')
 const baseCount = require('./base-returnCount')
 const terraformer = require('terraformer')
-const turf = require('@turf/turf')
 
 function Model(koop) {
   this.getData = function (req, callback) {

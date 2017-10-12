@@ -11,8 +11,10 @@
     "test": "standard && tape test/*.js | tap-spec"
   },
   "dependencies": {
+    "@esri/arcgis-to-geojson-utils": "^1.0.4",
     "@koopjs/cache-redis": "^1.0.1",
     "@mapbox/geojson-merge": "^1.0.2",
+    "@turf/turf": "^4.7.3",
     "config": "^1.25.1",
     "esri-to-geojson": "^1.0.3",
     "featureservice": "^1.5.11",
@@ -24,6 +26,7 @@
   "author": "Daniel Fenton",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@esri/arcgis-to-geojson-utils": "^1.0.4",
     "nock": "^9.0.2",
     "standard": "^10.0.0",
     "tap-spec": "^4.1.1",

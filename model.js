@@ -14,8 +14,8 @@ const _ = require('lodash')
 const FeatureService = require('featureservice')
 const baseGeoJSON = require('./base-geojson')
 const baseCount = require('./base-returnCount')
-
-console.log('wtf')
+const terraformer = require('terraformer')
+const turf = require('@turf/turf')
 
 function Model(koop) {
   this.getData = function (req, callback) {
@@ -29,6 +29,7 @@ function Model(koop) {
 
         let fsRequests = []
         data.forEach(function (d) {
+          // only add services that fall within query extent
           fsRequests.push(requestASync(d))
         })
         Promise.all(fsRequests)
@@ -37,8 +38,9 @@ function Model(koop) {
             if (results[0] && results[0].count) {
               var c = baseCount
               c.count = results.reduce(function (pVal, cVal) {
-                return pVal + (cVal.count * 10)
+                return pVal + cVal.count
                }, 0)
+               console.log(`Return Count : ${c.count}`);
                return callback(null, c)
             }
 
@@ -135,36 +137,42 @@ function Model(koop) {
 function buildQueries(schema, query, qcb) {
 
   // for each schema
-  const urls = Object.keys(schema).map(function (k) {
-    const srvcSchema = schema[k]
-    const base = srvcSchema.url
-    const fldMap = srvcSchema.fieldMap
-    const swizzledQuery = _.cloneDeep(query)
-    var  tQuery = translateQuery(fldMap, query.where) 
-    if (tQuery) swizzledQuery.where = tQuery
+  const urls = Object.keys(schema)
+    .filter(function (itm) {
+      return isValidExtent(schema[itm], query);
+    })
+    .map(
+      function (k) {
+        const srvcSchema = schema[k]
+        const base = srvcSchema.url
+        const fldMap = srvcSchema.fieldMap
+        const swizzledQuery = _.cloneDeep(query)
+        var  tQuery = translateQuery(fldMap, query.where) 
+        if (tQuery) swizzledQuery.where = tQuery
     
-    // ***** TODO: questions?
-    
-    // Handle services in different reference systems *****
-    if (swizzledQuery.outSR !== 4326){
-      swizzledQuery.outSR = 4326
-    }
+        // ***** TODO: questions?
+        
+        // Handle services in different reference systems *****
+        if (swizzledQuery.outSR !== 4326){
+          swizzledQuery.outSR = 4326
+        }
 
-    // only supported with services >= 10.4
-    if (swizzledQuery.f !== 'geojson') {
-      swizzledQuery.f = 'geojson'
-    } 
-    // *****
-    const newQuery = getAsParams(swizzledQuery)
+        // only supported with services >= 10.4
+        if (swizzledQuery.f !== 'geojson') {
+          swizzledQuery.f = 'geojson'
+        } 
+        // *****
+        const newQuery = getAsParams(swizzledQuery)
+        console.log(`New Query ${newQuery}`)
+        const newURL = `${base}?${newQuery}`
 
-    const newURL = `${base}?${newQuery}`
-
-    return {
-      url: newURL,
-      schema: fldMap,
-      q: swizzledQuery
-    }
-  })
+        return {
+          url: newURL,
+          schema: fldMap,
+          q: swizzledQuery
+        }
+      }
+    )
 
   qcb(null, urls)
   /* paging?
@@ -172,6 +180,53 @@ function buildQueries(schema, query, qcb) {
     qcb(null, r.reduce((p,c)=>{return p.concat(c)}))
   })
   */
+}
+
+/**
+ * only send queries if they fall in our aoi
+ * @param {*extent of query} queryExtent 
+ * @param {*extent of schema} schemaExtent 
+ */
+function isValidExtent (schema, query) {
+  
+  if (schema.extent && query.geometry) {
+    var sJSON = {
+      "type": "Polygon",
+      "coordinates": [[
+        [schema.extent.xmin, schema.extent.ymin],
+        [schema.extent.xmax, schema.extent.ymin],
+        [schema.extent.xmax, schema.extent.ymax],
+        [schema.extent.xmin, schema.extent.ymax]
+      ]]
+    }
+    terraformer.Tools.toGeographic(sJSON)
+
+    var sPoly = new terraformer.Primitive(sJSON);
+    sPoly.close();
+    
+    // 
+    var qj = JSON.parse(query.geometry)
+    var qJSON = {
+      "type": "Polygon",
+      "coordinates": [[
+          [qj.xmin, qj.ymin],
+          [qj.xmax, qj.ymin],
+          [qj.xmax, qj.ymax],
+          [qj.xmin, qj.ymax]
+      ]]
+    }
+    terraformer.Tools.toGeographic(qJSON)
+    var qPoly = new terraformer.Primitive(qJSON)
+    qPoly.close()
+    var i = qPoly.intersects(sPoly);
+    console.log(`${schema} intersects : ${i}`)
+    return i
+    
+  }
+
+  // schema or query doesn't have a specified boundary
+  // let it through
+  return true;
 }
 
 /**
@@ -221,8 +276,10 @@ function getFSUrls(i, cb) {
  */
 function getAsParams(queryObj) {
   let str = []
-  for (var prop in queryObj) {
-    if (queryObj.hasOwnProperty(prop) && prop !== 'callback' && prop != 'outStatistics') {
+  const xParams = ['callback', 'outStatistics']
+  for (var i = 0, keys = Object.keys(queryObj); i < keys.length; i++) {
+    var prop = keys[i]
+    if (!xParams.includes(prop)) {
       str.push(encodeURIComponent(prop) + '=' + encodeURIComponent(queryObj[prop]))
     }
   }
@@ -249,7 +306,6 @@ function translateFields(ofResults, toSchema) {
     })
     newProps.sourceservice = toSchema.url.split('?')[0]
     return {
-      type: 'Feature',
       properties: newProps,
       geometry: f.geometry
     }

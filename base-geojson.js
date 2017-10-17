@@ -5,12 +5,12 @@ module.exports = {
     maxRecordCount: 5000,
     geometryType: 'Point',
     extent: {
-      xmin: -119.70703125,
-      ymin: 16.85302734375,
-      xmax: -77.958984375,
-      ymax: 59.34814453125,
-      spatialReference: {
-        wkid: 4326
+      xmin:-137.889404296875,
+      ymin:11.55487060546875,
+      xmax:-45.604248046875,
+      ymax:57.34588623046875,
+      spatialReference:{
+        wkid:4326
       }
     },
     name: 'Aggregrated Addresses',

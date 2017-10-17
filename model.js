@@ -16,23 +16,32 @@ const baseGeoJSON = require('./base-geojson')
 const baseCount = require('./base-returnCount')
 const terraformer = require('terraformer')
 
+/**
+ * 
+ * @param {*} koop 
+ */
 function Model(koop) {
   this.getData = function (req, callback) {
     //console.log('hello')
+    //if (req.query.keys.length === 0) {return callback(null, baseGeoJSON)}
     this.cache.catalog.retrieve(req.params.id, function (e, schema) {
       //console.log(e, schema)
       if (e) return callback(e)
       buildQueries(schema.schemas, req.query, function (err, data) {
         //console.log(data)
         if (err) return callback(err)
-
-        let fsRequests = []
-        data.forEach(function (d) {
-          // only add services that fall within query extent
-          fsRequests.push(requestASync(d))
-        })
-        Promise.all(fsRequests)
-          .then(function (results) {
+        
+        Promise.all(
+          data.map(function (d) {
+            // return requestASync(d)
+            return request({
+              uri: d.url, 
+              schema: d,
+              transform: function (b) {
+                return translateFields(b, this.schema)
+              }
+            })
+        })).then(function (results) {
             // everything is done, combine the results and send it along
             if (results[0] && results[0].count) {
               var c = baseCount
@@ -53,7 +62,14 @@ function Model(koop) {
               where: true
             }
             agg.features = combinedFeatures || []
-            // console.log(`getData returning: ${agg.features.length} features`)
+            
+            console.log(`getDate Feature length: ${agg.features.length}`)
+            console.log(
+              agg.features.map((f)=>{
+                return f.properties.addressnumber
+              }).join(',')
+            )
+            
             return callback(null, agg)
           })
           .catch(function (err) {
@@ -148,7 +164,13 @@ function buildQueries(schema, query, qcb) {
         const swizzledQuery = _.cloneDeep(query)
         var  tQuery = translateQuery(fldMap, query.where) 
         if (tQuery) swizzledQuery.where = tQuery
-    
+        
+        
+        if (query.geometry) {
+          var queryJson = JSON.parse(query.geometry)
+          console.log(`Query Extent: ${queryJson.xmin},${queryJson.ymin},${queryJson.xmax},${queryJson.ymax}`)
+        }
+        
         // ***** TODO: questions?
         
         // Handle services in different reference systems *****
@@ -159,10 +181,12 @@ function buildQueries(schema, query, qcb) {
         // only supported with services >= 10.4
         if (swizzledQuery.f !== 'geojson') {
           swizzledQuery.f = 'geojson'
+          swizzledQuery.resultType = 'tile'
         } 
+      
         // *****
         const newQuery = getAsParams(swizzledQuery)
-        console.log(`New Query ${newQuery}`)
+        //console.log(`Old Query ${query} \n New Query ${swizzledQuery}`)
         const newURL = `${base}?${newQuery}`
 
         return {
@@ -214,11 +238,12 @@ function isValidExtent (schema, query) {
           [qj.xmin, qj.ymax]
       ]]
     }
+    
     terraformer.Tools.toGeographic(qJSON)
     var qPoly = new terraformer.Primitive(qJSON)
     qPoly.close()
     var i = qPoly.intersects(sPoly);
-    console.log(`${schema} intersects : ${i}`)
+    // console.log(`${schema} intersects : ${i}`)
     return i
     
   }
@@ -234,13 +259,14 @@ function isValidExtent (schema, query) {
  */
 function requestASync(itm) {
   return new Promise(function (resolve, reject) {
-    // console.log(`Requesting\n ${itm.url}`)
+    //console.log(`Requesting\n ${itm.url}`)
     request(itm.url, function (err, res, body) {
       if (err) return reject(err)
       if (itm.q.returnCountOnly || itm.q.returnIdsOnly) {
         return resolve(body.properties)
       }
       const features = translateFields(body, itm)
+      console.log(`resolve query : ${itm.url}`)
       return resolve(features)
     })
   })

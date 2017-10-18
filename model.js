@@ -329,6 +329,7 @@ function translateFields(ofResults, toSchema) {
         }
       }
     })
+    newProps.aid = new Date().getUTCMilliseconds;
     newProps.sourceservice = toSchema.url.split('?')[0]
     return {
       properties: newProps,

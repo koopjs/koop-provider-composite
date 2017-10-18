@@ -13,13 +13,10 @@ module.exports = {
         wkid:4326
       }
     },
+    idField: "aid",
     name: 'Aggregrated Addresses',
     description: 'proxied by http://koopjs.github.io/',
-    fields: [{
-        name: 'OBJECTID',
-        type: 'esriFieldTypeOID',
-        alias: 'OBJECTID'
-      },
+    fields: [
       {
         name: 'state',
         type: 'esriFieldTypeString',
@@ -89,6 +86,11 @@ module.exports = {
         name: 'sourceservice',
         type: 'esriFieldTypeString',
         alias: 'sourceService'
+      },
+      {
+        name: 'aid',
+        type: 'esriFieldTypeDouble',
+        alias: 'aid'
       }
     ]
   }

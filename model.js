@@ -22,18 +22,13 @@ const terraformer = require('terraformer')
  */
 function Model(koop) {
   this.getData = function (req, callback) {
-    //console.log('hello')
-    //if (req.query.keys.length === 0) {return callback(null, baseGeoJSON)}
     this.cache.catalog.retrieve(req.params.id, function (e, schema) {
-      //console.log(e, schema)
       if (e) return callback(e)
       buildQueries(schema.schemas, req.query, function (err, data) {
-        //console.log(data)
         if (err) return callback(err)
         
         Promise.all(
           data.map(function (d) {
-            // return requestASync(d)
             return request({
               uri: d.url, 
               schema: d,
@@ -48,7 +43,6 @@ function Model(koop) {
               c.count = results.reduce(function (pVal, cVal) {
                 return pVal + cVal.count
                }, 0)
-               console.log(`Return Count : ${c.count}`);
                return callback(null, c)
             }
 
@@ -63,17 +57,10 @@ function Model(koop) {
             }
             agg.features = combinedFeatures || []
             
-            console.log(`getDate Feature length: ${agg.features.length}`)
-            console.log(
-              agg.features.map((f)=>{
-                return f.properties.addressnumber
-              }).join(',')
-            )
-            
             return callback(null, agg)
           })
           .catch(function (err) {
-            console.log(`getData : ${err} `)
+            return callback(err);
           })
       })
     })
@@ -165,14 +152,7 @@ function buildQueries(schema, query, qcb) {
         var  tQuery = translateQuery(fldMap, query.where) 
         if (tQuery) swizzledQuery.where = tQuery
         
-        
-        if (query.geometry) {
-          var queryJson = JSON.parse(query.geometry)
-          console.log(`Query Extent: ${queryJson.xmin},${queryJson.ymin},${queryJson.xmax},${queryJson.ymax}`)
-        }
-        
         // ***** TODO: questions?
-        
         // Handle services in different reference systems *****
         if (swizzledQuery.outSR !== 4326){
           swizzledQuery.outSR = 4326
@@ -183,10 +163,9 @@ function buildQueries(schema, query, qcb) {
           swizzledQuery.f = 'geojson'
           swizzledQuery.resultType = 'tile'
         } 
-      
         // *****
+
         const newQuery = getAsParams(swizzledQuery)
-        //console.log(`Old Query ${query} \n New Query ${swizzledQuery}`)
         const newURL = `${base}?${newQuery}`
 
         return {
@@ -207,8 +186,8 @@ function buildQueries(schema, query, qcb) {
 
 /**
  * only send queries if they fall in our aoi
- * @param {*extent of query} queryExtent 
- * @param {*extent of schema} schemaExtent 
+ * @param {*extent of query} geometry sent in query extent 
+ * @param {*extent of schema} Extent of baseSchema to compare against 
  */
 function isValidExtent (schema, query) {
   
@@ -243,9 +222,7 @@ function isValidExtent (schema, query) {
     var qPoly = new terraformer.Primitive(qJSON)
     qPoly.close()
     var i = qPoly.intersects(sPoly);
-    // console.log(`${schema} intersects : ${i}`)
     return i
-    
   }
 
   // schema or query doesn't have a specified boundary
@@ -259,14 +236,12 @@ function isValidExtent (schema, query) {
  */
 function requestASync(itm) {
   return new Promise(function (resolve, reject) {
-    //console.log(`Requesting\n ${itm.url}`)
     request(itm.url, function (err, res, body) {
       if (err) return reject(err)
       if (itm.q.returnCountOnly || itm.q.returnIdsOnly) {
         return resolve(body.properties)
       }
       const features = translateFields(body, itm)
-      console.log(`resolve query : ${itm.url}`)
       return resolve(features)
     })
   })
@@ -324,11 +299,11 @@ function translateFields(ofResults, toSchema) {
     Object.keys(att).forEach(function (fAtt) {
       for (var prop in toSchema.schema) {
         if (fAtt === toSchema.schema[prop]) {
-          // console.log(`Matched ${fAtt} to ${prop}`)
           newProps[prop] = att[fAtt]
         }
       }
     })
+    // try and pseudo randomize an objectid
     newProps.aid = new Date().getUTCMilliseconds;
     newProps.sourceservice = toSchema.url.split('?')[0]
     return {

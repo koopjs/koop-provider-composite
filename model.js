@@ -9,11 +9,10 @@ const request = require('request-promise').defaults({
   gzip: true,
   json: true
 })
-// const async = require('async')
+
 const _ = require('lodash')
 const FeatureService = require('featureservice')
 const baseGeoJSON = require('./base-geojson')
-const baseCount = require('./base-returnCount')
 const terraformer = require('terraformer')
 
 /**
@@ -21,10 +20,15 @@ const terraformer = require('terraformer')
  * @param {*} koop 
  */
 function Model(koop) {
+  //this.indicator = {}
+  
   this.getData = function (req, callback) {
     this.cache.catalog.retrieve(req.params.id, function (e, schema) {
       if (e) return callback(e)
-      buildQueries(schema.schemas, req.query, function (err, data) {
+      if (schema.indicator_schema.metadata) {
+        baseGeoJSON.metadata = schema.indicator_schema.metadata
+      }
+      buildQueries(schema.aggregate_schemas, req.query, function (err, data) {
         if (err) return callback(err)
         
         Promise.all(
@@ -39,7 +43,7 @@ function Model(koop) {
         })).then(function (results) {
             // everything is done, combine the results and send it along
             if (results[0] && results[0].count) {
-              var c = baseCount
+              var c = {}
               c.count = results.reduce(function (pVal, cVal) {
                 return pVal + cVal.count
                }, 0)
@@ -69,7 +73,7 @@ function Model(koop) {
   this.getDatasetSchema = function (req, res, callback) {
     this.cache.catalog.retrieve(req.params.id, function (e, data) {
       if (e) return callback(e, `unable to find intitiative ${req.params.id}`, res)
-      return callback(null, data.schemas[req.params.schema], res)
+      return callback(null, data.aggregate_schemas[req.params.schema], res)
     })
   }
 
@@ -79,12 +83,13 @@ function Model(koop) {
       if (e) return callback(e, `unable to find intitiative ${req.params.id}`, res)
 
       // retrieve adds geojson schema by default, is this appropriate?
-      data.schemas = data.schema || {}
-      data.schemas[req.params.schema] = req.body
-
+      data.aggregate_schemas = data.aggregate_schemas || {}
+      data.aggregate_schemas[req.params.schema] = req.body
+      // TODO - Update Indicator Extent, after inserting a new agg service
+      
       rCache.catalog.update(req.params.id, data, function (err) {
         if (err) return callback(err, 'unable to add schema definition', res)
-        var d = data.schemas[req.params.schema]
+        var d = data.aggregate_schemas[req.params.schema]
         callback(e, d, res)
       })
     })
@@ -94,7 +99,7 @@ function Model(koop) {
     const rCache = this.cache
     rCache.catalog.retrieve(req.params.id, function (e, data) {
       if (e) return callback(e, `unable to find intiative : ${req.params.id}`, res)
-      delete data.schemas[req.params.schema]
+      delete data.aggregate_schemas[req.params.schema]
       rCache.catalog.update(req.params.id, data, function (err) {
         if (err) callback(err, `unable to remove schema definition : ${req.params.schema}`, res)
         return callback(null, `${req.params.schema} sucessfully removed`, res)
@@ -170,7 +175,7 @@ function buildQueries(schema, query, qcb) {
 
         return {
           url: newURL,
-          schema: fldMap,
+          schema: srvcSchema,
           q: swizzledQuery
         }
       }
@@ -270,6 +275,10 @@ function getFSUrls(i, cb) {
   })
 }
 
+function getIndicator(results) {
+  console.log('Get Results')
+}
+
 /**
  * 
  * @param {*} queryObj 
@@ -296,15 +305,16 @@ function translateFields(ofResults, toSchema) {
   return ofResults.features.map(function (f) {
     let newProps = {}
     let att = f.attributes ? f.attributes : f.properties
+    const prefixID = toSchema.schema.oidPreFix || (Date.now() * (Math.random() * 30000))
     Object.keys(att).forEach(function (fAtt) {
-      for (var prop in toSchema.schema) {
-        if (fAtt === toSchema.schema[prop]) {
+      for (var prop in toSchema.schema.fieldMap) {
+        if (fAtt === toSchema.schema.fieldMap[prop]) {
           newProps[prop] = att[fAtt]
         }
       }
     })
     // try and pseudo randomize an objectid
-    newProps.aid = new Date().getUTCMilliseconds;
+    newProps.aid = parseInt(`${prefixID}${att.ID}`,10)
     newProps.sourceservice = toSchema.url.split('?')[0]
     return {
       properties: newProps,

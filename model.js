@@ -166,7 +166,6 @@ function buildQueries(schema, query, qcb) {
         // only supported with services >= 10.4
         if (swizzledQuery.f !== 'geojson') {
           swizzledQuery.f = 'geojson'
-          swizzledQuery.resultType = 'tile'
         } 
         // *****
 
@@ -314,7 +313,7 @@ function translateFields(ofResults, toSchema) {
       }
     })
     // try and pseudo randomize an objectid
-    newProps.aid = parseInt(`${prefixID}${att.ID}`,10)
+    newProps.aid = parseInt(`${prefixID}${f.id}`,10)
     newProps.sourceservice = toSchema.url.split('?')[0]
     return {
       properties: newProps,

@@ -1,6 +1,6 @@
 {
   "name": "koop-provider-sample",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A sample provider for koop",
   "main": "index.js",
   "directories": {

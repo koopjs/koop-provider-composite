@@ -151,10 +151,17 @@ function buildQueries(schema, query, qcb) {
     .map(
       function (k) {
         const srvcSchema = schema[k]
-        const base = srvcSchema.url
+        let base = srvcSchema.url
         const fldMap = srvcSchema.fieldMap
         const swizzledQuery = _.cloneDeep(query)
-        var  tQuery = translateQuery(fldMap, query.where) 
+        var  tQuery = translateQuery(fldMap, query.where)
+        
+        if (query.outStatistics) {
+          var ts = translateStats(fldMap, query)
+          query.outStatistics = ts.outStats
+          query.groupByFieldsForStatistics = ts.grpField
+        }
+          
         if (tQuery) swizzledQuery.where = tQuery
         
         // ***** TODO: questions?
@@ -284,7 +291,7 @@ function getIndicator(results) {
  */
 function getAsParams(queryObj) {
   let str = []
-  const xParams = ['callback', 'outStatistics']
+  const xParams = ['callback']
   for (var i = 0, keys = Object.keys(queryObj); i < keys.length; i++) {
     var prop = keys[i]
     if (!xParams.includes(prop)) {
@@ -301,6 +308,7 @@ function getAsParams(queryObj) {
  */
 function translateFields(ofResults, toSchema) {
   if (!ofResults.features || ofResults.features.length === 0) return null
+  if (toSchema.q.outStatistics) return ofResults.features
   return ofResults.features.map(function (f) {
     let newProps = {}
     let att = f.attributes ? f.attributes : f.properties
@@ -335,6 +343,43 @@ function translateQuery(fields, query) {
     newQuery = newQuery.replace(new RegExp(f, 'g'), fields[f])
   }
   return newQuery
+}
+
+/**
+ * 
+ * @param {*} fields 
+ * @param {*} query 
+ */
+function translateStats(fields, query) {
+  var outStats = JSON.parse(query.outStatistics)
+  
+  var keys = Object.keys(fields)
+
+  // outStatistics
+  outStats.forEach(function (stat) {
+    var statFld = stat.onStatisticField
+    if (fields[statFld]){
+      stat.onStatisticField = fields[statFld]
+      stat.outStatisticFieldName = stat.outStatisticFieldName.replace(statFld, fields[statFld])
+    }
+  })
+
+  // groupByFieldsForStatistics
+  var grpFlds = query.groupByFieldsForStatistics.split(',')
+  if (grpFlds || grpFlds.length > 0) {
+    var gfs = []
+    grpFlds.forEach(function (grpFld){
+      if(fields[grpFld]) {
+        gfs.push(fields[grpFld])
+      } else {
+        gfs.push(grofld)
+      }
+    })
+  } else {
+    gfs = grpFlds
+  }
+
+  return {outStats: outStats, grpField: gfs.join(',')}
 }
 
 module.exports = Model

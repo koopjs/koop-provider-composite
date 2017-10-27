@@ -10,10 +10,16 @@ Combining data from different government agencies is often difficult because of 
 Koop Composite supports these needs through registration of a new _indicator_ with a schema, and then registering new sources for that indicator, as well as how their data schema align with the _indicator schema_. Then applications can query the virtual _indicator layer_ and Koop Composite automatically transforms any query filters to the local schemas, transforms the results into the indicator schema and combines the multiple responses into a single collection. 
 
 
+![Koop-Composite Architecture](doc/images/koop-composite-architecture.jpg)
 
 ## Install
 
-Koop Composite requires Redis for storing the _indicators_ and _schema_. Install Redis and then start with `redis-server`. Then install & run Koop Composite.
+Koop Composite requires Redis for storing the _indicators_ and _schema_. 
+
+Install Redis and then start with 
+- `redis-server`. 
+
+Then install & run Koop Composite.
 
 Run server:
 - `npm install`
@@ -24,7 +30,15 @@ Tests:
 
 ## Composite API 
 
-See examples in [files/](files/).
+There are multiple steps to creating & using a Composite provider:
+
+1. Create a new _indicator_ that includes the required schema
+2. Register a new _source_ from existing server layers, including their spatial extent and schema matching to the _indicator_ schema
+3. Query data from the new virtual layer
+
+You can also unregister _sources_.
+
+See additional examples in [files/](files/).
 
 ### Register a new Indicator
 

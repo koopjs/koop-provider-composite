@@ -16,12 +16,12 @@ const baseGeoJSON = require('./base-geojson')
 const terraformer = require('terraformer')
 
 /**
- * 
- * @param {*} koop 
+ *
+ * @param {*} koop
  */
 function Model(koop) {
   //this.indicator = {}
-  
+
   this.getData = function (req, callback) {
     this.cache.catalog.retrieve(req.params.id, function (e, schema) {
       if (e) return callback(e)
@@ -30,11 +30,12 @@ function Model(koop) {
       }
       buildQueries(schema.aggregate_schemas, req.query, function (err, data) {
         if (err) return callback(err)
-        
+
         Promise.all(
           data.map(function (d) {
+            // console.log(JSON.stringify(d));
             return request({
-              uri: d.url, 
+              uri: d.url,
               schema: d,
               transform: function (b) {
                 return translateFields(b, this.schema)
@@ -55,12 +56,14 @@ function Model(koop) {
               if (curr) return pre.concat(curr)
               return pre
             }, [])
-            agg.filterApplied = {
+            agg.filtersApplied = {
               geometry: true,
-              where: true
+              where: true,
+              offset: true,
+              projection: true
             }
             agg.features = combinedFeatures || []
-            
+
             return callback(null, agg)
           })
           .catch(function (err) {
@@ -69,6 +72,8 @@ function Model(koop) {
       })
     })
   }
+
+  var counter = 0;
 
   this.getDatasetSchema = function (req, res, callback) {
     this.cache.catalog.retrieve(req.params.id, function (e, data) {
@@ -86,7 +91,7 @@ function Model(koop) {
       data.aggregate_schemas = data.aggregate_schemas || {}
       data.aggregate_schemas[req.params.schema] = req.body
       // TODO - Update Indicator Extent, after inserting a new agg service
-      
+
       rCache.catalog.update(req.params.id, data, function (err) {
         if (err) return callback(err, 'unable to add schema definition', res)
         var d = data.aggregate_schemas[req.params.schema]
@@ -125,7 +130,7 @@ function Model(koop) {
   }
 
   /**
-   * 
+   *
    */
   this.removeDataset = function (req, res, callback) {
     this.cache.catalog.delete(req.params.id, function (err) {
@@ -136,10 +141,10 @@ function Model(koop) {
 }
 
 /**
- * 
- * @param {*} schema 
- * @param {*} query 
- * @param {*} qcb 
+ *
+ * @param {*} schema
+ * @param {*} query
+ * @param {*} qcb
  */
 function buildQueries(schema, query, qcb) {
 
@@ -154,19 +159,19 @@ function buildQueries(schema, query, qcb) {
         const base = srvcSchema.url
         const fldMap = srvcSchema.fieldMap
         const swizzledQuery = _.cloneDeep(query)
-        var  tQuery = translateQuery(fldMap, query.where) 
+        var  tQuery = translateQuery(fldMap, query.where)
         if (tQuery) swizzledQuery.where = tQuery
-        
+
         // ***** TODO: questions?
         // Handle services in different reference systems *****
-        if (swizzledQuery.outSR !== 4326){
-          swizzledQuery.outSR = 4326
-        }
+        // if (swizzledQuery.outSR !== 4326){
+        //   swizzledQuery.outSR = 4326
+        // }
 
         // only supported with services >= 10.4
         if (swizzledQuery.f !== 'geojson') {
           swizzledQuery.f = 'geojson'
-        } 
+        }
         // *****
 
         const newQuery = getAsParams(swizzledQuery)
@@ -190,11 +195,11 @@ function buildQueries(schema, query, qcb) {
 
 /**
  * only send queries if they fall in our aoi
- * @param {*extent of query} geometry sent in query extent 
- * @param {*extent of schema} Extent of baseSchema to compare against 
+ * @param {*extent of query} geometry sent in query extent
+ * @param {*extent of schema} Extent of baseSchema to compare against
  */
 function isValidExtent (schema, query) {
-  
+
   if (schema.extent && query.geometry) {
     var sJSON = {
       "type": "Polygon",
@@ -209,8 +214,8 @@ function isValidExtent (schema, query) {
 
     var sPoly = new terraformer.Primitive(sJSON);
     sPoly.close();
-    
-    // 
+
+    //
     var qj = JSON.parse(query.geometry)
     var qJSON = {
       "type": "Polygon",
@@ -221,7 +226,7 @@ function isValidExtent (schema, query) {
           [qj.xmin, qj.ymax]
       ]]
     }
-    
+
     terraformer.Tools.toGeographic(qJSON)
     var qPoly = new terraformer.Primitive(qJSON)
     qPoly.close()
@@ -235,8 +240,8 @@ function isValidExtent (schema, query) {
 }
 
 /**
- * 
- * @param {*} itm 
+ *
+ * @param {*} itm
  */
 function requestASync(itm) {
   return new Promise(function (resolve, reject) {
@@ -252,9 +257,9 @@ function requestASync(itm) {
 }
 
 /**
- * 
- * @param {*} i 
- * @param {*} cb 
+ *
+ * @param {*} i
+ * @param {*} cb
  */
 function getFSUrls(i, cb) {
   const fs = new FeatureService(i.url, {
@@ -279,8 +284,8 @@ function getIndicator(results) {
 }
 
 /**
- * 
- * @param {*} queryObj 
+ *
+ * @param {*} queryObj
  */
 function getAsParams(queryObj) {
   let str = []
@@ -295,9 +300,9 @@ function getAsParams(queryObj) {
 }
 
 /**
- * 
- * @param {*} ofResults 
- * @param {*} toSchema 
+ *
+ * @param {*} ofResults
+ * @param {*} toSchema
  */
 function translateFields(ofResults, toSchema) {
   if (!ofResults.features || ofResults.features.length === 0) return null
@@ -323,9 +328,9 @@ function translateFields(ofResults, toSchema) {
 }
 
 /**
- * 
- * @param {*} fields 
- * @param {*} query 
+ *
+ * @param {*} fields
+ * @param {*} query
  */
 function translateQuery(fields, query) {
   // replace query fields with fields from the schema map

@@ -161,11 +161,6 @@ function buildQueries(schema, query, qcb) {
         var  tQuery = translateQuery(fldMap, query.where)
         if (tQuery) swizzledQuery.where = tQuery
 
-        // only supported with services >= 10.4
-        if (swizzledQuery.f !== 'geojson') {
-          swizzledQuery.f = 'geojson'
-        }
-        
         const newQuery = getAsParams(swizzledQuery)
         const newURL = `${base}?${newQuery}`
 
@@ -297,7 +292,14 @@ function getAsParams(queryObj) {
  * @param {*} toSchema
  */
 function translateFields(ofResults, toSchema) {
-  if (!ofResults.features || ofResults.features.length === 0) return null
+  if (!ofResults.features || ofResults.features.length === 0) {
+    // if incoming results set is from a query with `returnCountOnly=true`
+    if (ofResults.count) {
+      return { count: ofResults.count }
+    } else {
+      return null
+    }
+  }
   return ofResults.features.map(function (f) {
     let newProps = {}
     let att = f.attributes ? f.attributes : f.properties

@@ -161,7 +161,7 @@ function buildQueries(schema, query, qcb) {
         var  tQuery = translateQuery(fldMap, query.where)
         if (tQuery) swizzledQuery.where = tQuery
 
-        const newQuery = getAsParams(swizzledQuery, srvcSchema)
+        const newQuery = getAsParams(swizzledQuery)
         const newURL = `${base}?${newQuery}`
 
         return {

@@ -55,12 +55,14 @@ function Model(koop) {
               if (curr) return pre.concat(curr)
               return pre
             }, [])
+
             agg.filtersApplied = {
               geometry: true,
               where: true,
               offset: true,
               projection: true
             }
+
             agg.features = combinedFeatures || []
 
             return callback(null, agg)
@@ -154,21 +156,20 @@ function buildQueries(schema, query, qcb) {
     })
     .map(
       function (k) {
+        // console.log('schema', schema);
+        // console.log('k', k);
         const srvcSchema = schema[k]
         const base = srvcSchema.url
         const fldMap = srvcSchema.fieldMap
         const swizzledQuery = _.cloneDeep(query)
+        // console.log('oldQuery', query);
         var  tQuery = translateQuery(fldMap, query.where)
+        // console.log('swizzledQuery', swizzledQuery);
         if (tQuery) swizzledQuery.where = tQuery
 
-        // only supported with services >= 10.4
-        if (swizzledQuery.f !== 'geojson') {
-          swizzledQuery.f = 'geojson'
-        }
-        
-        const newQuery = getAsParams(swizzledQuery)
+        const newQuery = getAsParams(swizzledQuery, srvcSchema)
         const newURL = `${base}?${newQuery}`
-
+        
         return {
           url: newURL,
           schema: srvcSchema,
@@ -279,7 +280,9 @@ function getIndicator(results) {
  *
  * @param {*} queryObj
  */
-function getAsParams(queryObj) {
+function getAsParams(queryObj, srvcSchema) {
+  // console.log('queryObj', queryObj)
+  // console.log('srvcSchema', srvcSchema)
   let str = []
   const xParams = ['callback', 'outStatistics']
   for (var i = 0, keys = Object.keys(queryObj); i < keys.length; i++) {
@@ -297,7 +300,14 @@ function getAsParams(queryObj) {
  * @param {*} toSchema
  */
 function translateFields(ofResults, toSchema) {
-  if (!ofResults.features || ofResults.features.length === 0) return null
+  if (!ofResults.features || ofResults.features.length === 0) {
+    // if incoming results set is from a query with `returnCountOnly=true`
+    if (ofResults.count) {
+      return { count: ofResults.count }
+    } else {
+      return null
+    }
+  }
   return ofResults.features.map(function (f) {
     let newProps = {}
     let att = f.attributes ? f.attributes : f.properties

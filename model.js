@@ -33,7 +33,6 @@ function Model(koop) {
 
         Promise.all(
           data.map(function (d) {
-            // console.log(JSON.stringify(d));
             return request({
               uri: d.url,
               schema: d,
@@ -162,18 +161,11 @@ function buildQueries(schema, query, qcb) {
         var  tQuery = translateQuery(fldMap, query.where)
         if (tQuery) swizzledQuery.where = tQuery
 
-        // ***** TODO: questions?
-        // Handle services in different reference systems *****
-        // if (swizzledQuery.outSR !== 4326){
-        //   swizzledQuery.outSR = 4326
-        // }
-
         // only supported with services >= 10.4
         if (swizzledQuery.f !== 'geojson') {
           swizzledQuery.f = 'geojson'
         }
-        // *****
-
+        
         const newQuery = getAsParams(swizzledQuery)
         const newURL = `${base}?${newQuery}`
 

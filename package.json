@@ -17,6 +17,7 @@
     "@turf/turf": "^4.7.3",
     "config": "^1.25.1",
     "esri-to-geojson": "^1.0.3",
+    "featureserver": "^2.7.0",
     "featureservice": "^1.5.11",
     "koop": "^3.5.2",
     "request": "^2.79.0",

@@ -23,6 +23,12 @@ function Model(koop) {
   //this.indicator = {}
 
   this.getData = function (req, callback) {
+    if (!req.query.outSR) {
+      req.query.outSR = 4326
+    }
+    if (!req.query.f) {
+      req.query.f = 'json'
+    }
     this.cache.catalog.retrieve(req.params.id, function (e, schema) {
       if (e) return callback(e)
       if (schema.indicator_schema.metadata) {
@@ -33,6 +39,7 @@ function Model(koop) {
 
         Promise.all(
           data.map(function (d) {
+            console.log(d.url)
             return request({
               uri: d.url,
               schema: d,
@@ -56,10 +63,7 @@ function Model(koop) {
               return pre
             }, [])
             agg.filtersApplied = {
-              geometry: true,
-              where: true,
-              offset: true,
-              projection: true
+              all:true
             }
             agg.features = combinedFeatures || []
 
@@ -315,7 +319,7 @@ function translateFields(ofResults, toSchema) {
     newProps.aid = parseInt(`${prefixID}${f.id}`,10)
     newProps.sourceservice = toSchema.url.split('?')[0]
     return {
-      properties: newProps,
+      attributes: newProps,
       geometry: f.geometry
     }
   })

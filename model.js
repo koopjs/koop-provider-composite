@@ -39,7 +39,6 @@ function Model(koop) {
 
         Promise.all(
           data.map(function (d) {
-            console.log(d.url)
             return request({
               uri: d.url,
               schema: d,

@@ -1,4 +1,4 @@
-FROM node:6
+FROM node:8-slim
 RUN mkdir -p /srv/www/koop
 ADD package.json /srv/www/koop
 WORKDIR /srv/www/koop

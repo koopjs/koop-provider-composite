@@ -1,6 +1,8 @@
 node_modules
 *.log
 
+files_sdg
+
 \.vscode/
 .eslintrc.json
 notes.md

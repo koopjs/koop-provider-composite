@@ -23,6 +23,12 @@ function Model(koop) {
   //this.indicator = {}
 
   this.getData = function (req, callback) {
+    if (!req.query.outSR) {
+      req.query.outSR = 4326
+    }
+    if (!req.query.f) {
+      req.query.f = 'json'
+    }
     this.cache.catalog.retrieve(req.params.id, function (e, schema) {
       if (e) return callback(e)
       if (schema.indicator_schema.metadata) {
@@ -33,6 +39,7 @@ function Model(koop) {
 
         Promise.all(
           data.map(function (d) {
+            console.log(d.url);
             return request({
               uri: d.url,
               schema: d,
@@ -56,12 +63,11 @@ function Model(koop) {
               return pre
             }, [])
             agg.filtersApplied = {
-              geometry: true,
-              where: true,
-              offset: true,
-              projection: true
+              all:true
             }
-            agg.features = combinedFeatures || []
+            // console.log(agg.metadata)
+            // agg.features = combinedFeatures || []
+            agg.features = combinedFeatures.slice(0, req.query.resultRecordCount || combinedFeatures.length)
 
             return callback(null, agg)
           })
@@ -148,18 +154,22 @@ function Model(koop) {
 function buildQueries(schema, query, qcb) {
 
   // for each schema
-  const urls = Object.keys(schema)
+  const validExtents = Object.keys(schema)
     .filter(function (itm) {
       return isValidExtent(schema[itm], query);
     })
+
+    const urls = validExtents
     .map(
       function (k) {
         const srvcSchema = schema[k]
         const base = srvcSchema.url
         const fldMap = srvcSchema.fieldMap
-        const swizzledQuery = _.cloneDeep(query)
-        var  tQuery = translateQuery(fldMap, query.where)
-        if (tQuery) swizzledQuery.where = tQuery
+        // const swizzledQuery = _.cloneDeep(query)
+        // var tQuery = translateQuery(fldMap, query)
+        // if (tQuery.where) swizzledQuery.where = tQuery.where
+
+        const swizzledQuery = translateQuery(fldMap, query, validExtents.length);
 
         const newQuery = getAsParams(swizzledQuery)
         const newURL = `${base}?${newQuery}`
@@ -315,7 +325,7 @@ function translateFields(ofResults, toSchema) {
     newProps.aid = parseInt(`${prefixID}${f.id}`,10)
     newProps.sourceservice = toSchema.url.split('?')[0]
     return {
-      properties: newProps,
+      attributes: newProps,
       geometry: f.geometry
     }
   })
@@ -326,14 +336,23 @@ function translateFields(ofResults, toSchema) {
  * @param {*} fields
  * @param {*} query
  */
-function translateQuery(fields, query) {
+function translateQuery(fields, query, servicesCount) {
   // replace query fields with fields from the schema map
-  if (!query) return
-  let newQuery = query
-  for (var f in fields) {
-    newQuery = newQuery.replace(new RegExp(f, 'g'), fields[f])
+  query = _.cloneDeep(query)
+  if (!query.where) return
+  if (query.orderByFields === 'aid ASC' || query.orderByFields === 'aid DESC') {
+    delete query.orderByFields
   }
-  return newQuery
+  if (query.resultOffset) {
+    query.resultOffset = Math.floor(query.resultOffset / servicesCount)
+  }
+  for (var f in fields) {
+    query.where = query.where.replace(new RegExp(f, 'g'), fields[f])
+    if (query.orderByFields) {
+      query.orderByFields = query.orderByFields.replace(new RegExp(f, 'g'), fields[f])
+    }
+  }
+  return query
 }
 
 module.exports = Model

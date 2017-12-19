@@ -1,7 +1,7 @@
 {
-  "name": "koop-provider-sample",
+  "name": "koop-provider-composite",
   "version": "1.0.1",
-  "description": "A sample provider for koop",
+  "description": "Composite multiple feature services into one.",
   "main": "index.js",
   "directories": {
     "test": "test"
@@ -27,7 +27,6 @@
   "author": "Daniel Fenton",
   "license": "Apache-2.0",
   "devDependencies": {
-    "@esri/arcgis-to-geojson-utils": "^1.0.4",
     "nock": "^9.0.2",
     "standard": "^10.0.0",
     "tap-spec": "^4.1.1",
@@ -35,15 +34,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/koopjs/koop-provider-sample.git"
+    "url": "git+https://github.com/koopjs/koop-provider-composite.git"
   },
   "bugs": {
-    "url": "https://github.com/koopjs/koop-provider-sample/issues"
+    "url": "https://github.com/koopjs/koop-provider-composite/issues"
   },
-  "homepage": "https://github.com/koopjs/koop-provider-sample",
+  "homepage": "https://github.com/koopjs/koop-provider-composite",
   "keywords": [
     "koop",
     "provider",
-    "sample"
+    "composite",
+    "featureservice",
+    "join"
   ]
 }

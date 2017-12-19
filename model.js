@@ -284,7 +284,7 @@ function getIndicator(results) {
  *
  * @param {*} queryObj
  */
-function getAsParams(queryObj) {
+function getAsParams(queryObj = {}) {
   let str = []
   const xParams = ['callback', 'outStatistics']
   for (var i = 0, keys = Object.keys(queryObj); i < keys.length; i++) {
